@@ -92,6 +92,12 @@
 
 #include "shmemx.h"
 
+#if defined(HAVE_FEATURE_EXPERIMENTAL)
+// #include "eureka.h"
+/* TODO: @eureka : Need to change the path of the eureka.h */
+#include "/gpfs/home/mshahneousba/dev/openshmem/build/src/eureka/eureka.h"    /*@eureka header*/
+#endif /*HAVE_FEATURE_EXPERIMENTAL*/
+
 #include "comms-shared.h"
 
 
@@ -648,8 +654,12 @@ enum
     GASNET_HANDLER_globalvar_put_bak,
     GASNET_HANDLER_globalvar_get_out,
     GASNET_HANDLER_globalvar_get_bak,
-
-    GASNET_HANDLER_globalexit_out
+  
+#if defined(HAVE_FEATURE_EXPERIMENTAL)
+  GASNET_HANDLER_eureka_out,
+#endif /* HAVE_FEATURE_EXPERIMENTAL */  
+    
+  GASNET_HANDLER_globalexit_out
     /* no reply partner for global_exit */
 };
 
@@ -986,7 +996,6 @@ AMO_SWAP_OUT_EMIT (double, double);
     static inline Type                                                  \
     shmemi_comms_swap_request_##Name (Type *target, Type value, int pe) \
     {                                                                   \
-        Type save;                                                      \
         amo_payload_##Name##_t *p =                                     \
             (amo_payload_##Name##_t *) malloc (sizeof (*p));            \
         if (EXPR_UNLIKELY (p == NULL)) {                                \
@@ -1007,9 +1016,8 @@ AMO_SWAP_OUT_EMIT (double, double);
                                  p, sizeof (*p));                       \
                                                                         \
         WAIT_ON_COMPLETION (p->completed);                              \
-        save = p->value;                                                \
         free (p);                                                       \
-        return save;                                                    \
+        return p->value;                                                \
     }
 
 AMO_SWAP_REQ_EMIT (int, int);
@@ -1093,7 +1101,6 @@ AMO_CSWAP_BAK_EMIT (longlong, long long);
                                        Type value,                      \
                                        int pe)                          \
     {                                                                   \
-        Type save;                                                      \
         amo_payload_##Name##_t *cp =                                    \
             (amo_payload_##Name##_t *) malloc (sizeof (*cp));           \
         if (EXPR_UNLIKELY (cp == NULL)) {                               \
@@ -1117,9 +1124,10 @@ AMO_CSWAP_BAK_EMIT (longlong, long long);
                                  cp, sizeof (*cp));                     \
                                                                         \
         WAIT_ON_COMPLETION (cp->completed);                             \
-        save = cp->value;                                               \
+                                                                        \
         free (cp);                                                      \
-        return save;                                                    \
+                                                                        \
+        return cp->value;                                               \
     }
 
 AMO_CSWAP_REQ_EMIT (int, int);
@@ -1196,7 +1204,6 @@ AMO_FADD_BAK_EMIT (longlong, long long);
     static inline Type                                                  \
     shmemi_comms_fadd_request_##Name (Type *target, Type value, int pe) \
     {                                                                   \
-        Type save;                                                      \
         amo_payload_##Name##_t *p =                                     \
             (amo_payload_##Name##_t *) malloc (sizeof (*p));            \
         if (EXPR_UNLIKELY (p == NULL)) {                                \
@@ -1218,9 +1225,10 @@ AMO_FADD_BAK_EMIT (longlong, long long);
                                  p, sizeof (*p));                       \
                                                                         \
         WAIT_ON_COMPLETION (p->completed);                              \
-        save = p->value;                                                \
+                                                                        \
         free (p);                                                       \
-        return save;                                                    \
+                                                                        \
+        return p->value;                                                \
     }
 
 AMO_FADD_REQ_EMIT (int, int);
@@ -1295,7 +1303,6 @@ AMO_FINC_BAK_EMIT (longlong, long long);
     static inline Type                                                  \
     shmemi_comms_finc_request_##Name (Type *target, int pe)             \
     {                                                                   \
-        Type save;                                                      \
         amo_payload_##Name##_t *p =                                     \
             (amo_payload_##Name##_t *) malloc (sizeof (*p));            \
         if (EXPR_UNLIKELY (p == NULL)) {                                \
@@ -1316,9 +1323,10 @@ AMO_FINC_BAK_EMIT (longlong, long long);
                                  p, sizeof (*p));                       \
                                                                         \
         WAIT_ON_COMPLETION (p->completed);                              \
-        save = p->value;                                                \
+                                                                        \
         free (p);                                                       \
-        return save;                                                    \
+                                                                        \
+        return p->value;                                                \
     }
 
 AMO_FINC_REQ_EMIT (int, int);
@@ -1574,7 +1582,6 @@ AMO_FETCH_BAK_EMIT (double, double);
     static inline Type                                                  \
     shmemi_comms_fetch_request_##Name (Type *target, int pe)            \
     {                                                                   \
-        Type save;                                                      \
         amo_payload_##Name##_t *p =                                     \
             (amo_payload_##Name##_t *) malloc (sizeof (*p));            \
         if (EXPR_UNLIKELY (p == NULL)) {                                \
@@ -1594,9 +1601,10 @@ AMO_FETCH_BAK_EMIT (double, double);
                                  p, sizeof (*p));                       \
                                                                         \
         WAIT_ON_COMPLETION (p->completed);                              \
-        save = p->value;                                                \
+                                                                        \
         free (p);                                                       \
-        return save;                                                    \
+                                                                        \
+        return p->value;                                                \
     }
 
 AMO_FETCH_REQ_EMIT (int, int);
@@ -1793,6 +1801,9 @@ AMO_XOR_BAK_EMIT (longlong, long long);
 AMO_XOR_REQ_EMIT (int, int);
 AMO_XOR_REQ_EMIT (long, long);
 AMO_XOR_REQ_EMIT (longlong, long long);
+
+
+
 
 #endif /* HAVE_FEATURE_EXPERIMENTAL */
 
@@ -2642,6 +2653,133 @@ shmemi_comms_globalexit_request (int status)
 /* end: global exit */
 
 
+
+#if defined(HAVE_FEATURE_EXPERIMENTAL)
+
+/*@eureka 
+ *Communication handler for Eureka event
+ *Proposed by Stony Brook University
+ */
+
+/**
+ * called by remote PE when an eureka_event is triggered by some other PE
+ */
+static void
+handler_eureka_out (gasnet_token_t token, void *buf, size_t bufsiz)
+{
+  const int mype = GET_STATE (mype);
+  const int npes = GET_STATE (numpes);
+    int pe, pseudo_pe, ret;
+  
+  int origin = *(int *) buf;
+  
+  /* TODO:Do I even need this fence?? I might not need anything done by this PE. Need to finalize */
+  shmemi_comms_fence_request ();
+  
+  /*
+   * Implementation of binary tree based broadcasting
+   */
+  shmemi_trace (SHMEM_LOG_EUREKA, "4: Address of pthread_t = %p ", &eureka_obj.eureka_thrd);
+    
+  /* Broadcasting in a tree manner (binary tree). Send cancellation signal to my child */
+  pseudo_pe = (mype + npes - origin) % npes;
+  
+  /* Broadcasting in a tree manner (binary tree). We may want to change the tree structure later */
+  if((pe=((pseudo_pe + 1)*2 -1)) < npes)
+  {
+    //Active Message request to other PEs that a eureka event is found
+        gasnet_AMRequestMedium0 ( ((pe + origin) % npes), GASNET_HANDLER_eureka_out,
+                                     &origin, sizeof (origin));
+    shmemi_trace (SHMEM_LOG_EUREKA, "Signalling Eureka to PE = %d",((pe + origin) % npes));
+  }
+  if((pe=((pseudo_pe + 1)*2)) < npes)
+  {
+    //Active Message request to other PEs that a eureka event is found
+        gasnet_AMRequestMedium0 ( ((pe + origin) % npes), GASNET_HANDLER_eureka_out,
+                                     &origin, sizeof (origin));
+    shmemi_trace (SHMEM_LOG_EUREKA, "Signalling Eureka to PE = %d",((pe + origin) % npes));
+  }
+  
+  /* Send cancellation request to the eureka thread*/
+  ret = pthread_cancel(eureka_obj.eureka_thrd);
+  if (ret != 0)
+  {
+    shmemi_trace (SHMEM_LOG_EUREKA, "Error: cancelling eureka thread at PE = %d",mype);
+  }
+}
+
+/**
+ * called by initiator PE of eureka_trigger
+ *
+ * TODO: tree-based setup would be more scalable.
+ */
+static void
+shmemi_comms_eureka_tirgger_request (int origin)
+{
+    const int mype = GET_STATE (mype);
+    const int npes = GET_STATE (numpes);
+    int pe, pseudo_pe, ret;
+  
+  int status;
+    shmemi_trace (SHMEM_LOG_EUREKA,
+                      "Begin shmemi_comms_eureka_tirgger_request()");
+  shmemi_comms_fence_request ();
+  
+  /*
+   * Implementation of linear broadcasting
+   */
+  // for (pe = 0; pe < npes; pe += 1) 
+  // {
+  //   // send to everyone else
+  //   if (EXPR_LIKELY (mype != pe)) 
+  //   {
+  //     Active Message request to other PEs that a eureka event is found
+  //           gasnet_AMRequestShort0(pe, GASNET_HANDLER_eureka_out);
+  //      gasnet_AMRequestMedium0 (pe, GASNET_HANDLER_eureka_out,
+  //                                    &status, sizeof (status)); 
+  //   }
+  // }
+  
+  /*
+   * Implementation of binary tree based broadcasting
+   */
+
+  pseudo_pe = (mype + npes - origin) % npes;
+  
+  /* Broadcasting in a tree manner (binary tree). We may want to change the tree structure later */
+  if((pe=((pseudo_pe + 1)*2 -1)) < npes)
+  {
+    //Active Message request to other PEs that a eureka event is found
+        gasnet_AMRequestMedium0 ( ((pe + origin) % npes), GASNET_HANDLER_eureka_out,
+                                     &origin, sizeof (origin));
+    shmemi_trace (SHMEM_LOG_EUREKA, "Signalling Eureka to PE = %d",((pe + origin) % npes));
+  }
+  if((pe=((pseudo_pe + 1)*2)) < npes)
+  {
+    //Active Message request to other PEs that a eureka event is found
+        gasnet_AMRequestMedium0 ( ((pe + origin) % npes), GASNET_HANDLER_eureka_out,
+                                     &origin, sizeof (origin));
+    shmemi_trace (SHMEM_LOG_EUREKA, "Signalling Eureka to PE = %d",((pe + origin) % npes));
+  }
+  
+  shmemi_comms_fence_request ();
+  /* Send cancellation request to the eureka thread*/
+  ret = pthread_cancel(eureka_obj.eureka_thrd);
+  if (ret != 0)
+  {
+    shmemi_trace (SHMEM_LOG_EUREKA, "Error: cancelling eureka thread at PE = %d",mype);
+  }
+
+}
+
+/* end: eureka */
+
+
+#endif /*HAVE_FEATURE_EXPERIMENTAL*/
+
+
+
+
 /**
  * ---------------------------------------------------------------------------
  *
@@ -2689,7 +2827,6 @@ static gasnet_handlerentry_t handlers[] = {
     AMO_HANDLER_LOOKUP (xor, int),
     AMO_HANDLER_LOOKUP (xor, long),
     AMO_HANDLER_LOOKUP (xor, longlong),
-#endif /* HAVE_FEATURE_EXPERIMENTAL */
 
     AMO_HANDLER_LOOKUP (fetch, int),
     AMO_HANDLER_LOOKUP (fetch, long),
@@ -2702,6 +2839,9 @@ static gasnet_handlerentry_t handlers[] = {
     AMO_HANDLER_LOOKUP (set, longlong),
     AMO_HANDLER_LOOKUP (set, float),
     AMO_HANDLER_LOOKUP (set, double),
+  
+  {GASNET_HANDLER_eureka_out, handler_eureka_out},  /*@eureka*/
+#endif /* HAVE_FEATURE_EXPERIMENTAL */
 
 #if defined(HAVE_MANAGED_SEGMENTS)
     {GASNET_HANDLER_globalvar_put_out, handler_globalvar_put_out},
@@ -2709,8 +2849,9 @@ static gasnet_handlerentry_t handlers[] = {
     {GASNET_HANDLER_globalvar_get_out, handler_globalvar_get_out},
     {GASNET_HANDLER_globalvar_get_bak, handler_globalvar_get_bak},
 #endif /* HAVE_MANAGED_SEGMENTS */
-    {GASNET_HANDLER_globalexit_out, handler_globalexit_out}
+  {GASNET_HANDLER_globalexit_out, handler_globalexit_out}
     /* no reply partner for global_exit */
+
 };
 
 static const int nhandlers = TABLE_SIZE (handlers);

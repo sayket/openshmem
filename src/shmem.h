@@ -1,8 +1,8 @@
 /*
  *
- * Copyright (c) 2016-2017
+ * Copyright (c) 2016
  *   Stony Brook University
- * Copyright (c) 2015 - 2017
+ * Copyright (c) 2015 - 2016
  *   Los Alamos National Security, LLC.
  * Copyright (c) 2011 - 2016
  *   University of Houston System and UT-Battelle, LLC.
@@ -65,6 +65,7 @@
 
 #include <sys/types.h>
 #include <stddef.h>               /* ptrdiff_t */
+
 
 /*
  * C and C++ do complex numbers differently
@@ -256,7 +257,9 @@ extern "C"
      *
      */
     void shmem_global_exit (int status);
-
+    
+    
+    
     /**
      * @brief returns the "rank" or identity of the calling PE
      *
@@ -721,7 +724,7 @@ extern "C"
      * @subsection f Fortran
      @code
      INTEGER PE_start, logPE_stride, PE_size
-     INTEGER (*) pSync
+     INTEGER (*) pSync   <-----
 
      CALL SHMEM_BARRIER (PE_start, logPE_stride, PE_size, pSync)
      @endcode
@@ -821,8 +824,7 @@ extern "C"
      *
      * None
      *
-     * @return non-zero (C/C++) or .true. (Fortran) if "pe" can be
-     * communicated with.  0 (C/C++) or .false. (Fortran) if not.
+     * @return non-zero if "pe" can be communicated with.  0 if not.
      *
      */
     int shmem_pe_accessible (int pe) _WUR;
@@ -840,9 +842,8 @@ extern "C"
      *
      * @subsection f Fortran
      @code
-     INTEGER PE
-     LOGICAL RET
-     ADDR = address to query
+     INTEGER PE, RET
+     ADDR = address    <----------------
 
      RET = SHMEM_ADDR_ACCESSIBLE (ADDR, PE)
      @endcode
@@ -854,9 +855,8 @@ extern "C"
      *
      * None
      *
-     * @return non-zero (C/C++) or .true. (Fortran) if address "addr"
-     * can be used for communication on PE "pe".  0 (C/C++) or
-     * .false. (Fortran) if not.
+     * @return non-zero if address "addr" can be used for communication
+     * on PE "pe".  0 if not.
      *
      */
     int shmem_addr_accessible (const void *addr, int pe) _WUR;
@@ -875,10 +875,10 @@ extern "C"
      * @subsection f Fortran
      @code
      INTEGER PE
-     POINTER (PTR, POINTEE)
-     ADDR = address
+     ADDR RET = address <----------
+     ADDR = address    <----------------
 
-     PTR = SHMEM_PTR (ADDR, PE)
+     RET = SHMEM_PTR (ADDR, PE)
      @endcode
      *
      * @section Effect

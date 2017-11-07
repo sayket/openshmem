@@ -55,6 +55,13 @@
 
 #include <shmem.h>
 
+/*
+ * @eureka
+ * Header file for setjmp/longjmp, used to implement eureka API
+ */
+#include <setjmp.h>
+ 
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -314,6 +321,65 @@ extern "C"
 
     int shmemx_quiet_test (void);
 
+    /**
+     *@eureka
+     *
+     *Proposed by Stony Brook University
+     *
+     *
+     *@Author:Abdullah(MdAbdullah.ShahneousBari@stonybrook.edu) 
+     *@brief Intializes an function as an Eureka region/function.
+     *
+     * @section Synopsis
+     *
+     * @subsection c C/C++
+     @code
+     void shmem_eureka_init (void (*eureka_func) (void*), jmp_buf env);
+     @endcode
+     *
+     *
+     * @section Effect
+     *
+     * An collective operation. Called on every PEs simultaneously.
+     * Marks a function as a Eureka region/function. Indicates that the passed function eureka_func
+     * has eureka event inside it. shmem_eureka_init() preceded and followed by shmem_barrier_all()[implicit].
+     * 
+     *
+     * @return None.
+     *
+     */
+    // void shmem_eureka_init (void (*eureka_func) (void*), void *args);
+    
+    void shmem_eureka_init (void (*eureka_func) (void*), void *eureka_func_args, void (*eureka_clean_up_handler) (void*), void *clean_up_handler_args);
+    
+    /**
+     *@eureka
+     *@Author:Abdullah(MdAbdullah.ShahneousBari@stonybrook.edu) 
+     *@brief Triggers that an eureka event(result) is found. 
+     *causes immediate exit from the eureka region on all PEs.  
+     *
+     * @section Synopsis
+     *
+     * @subsection c C/C++
+     @code
+     void shmem_eureka (void);
+     @endcode
+     *
+     *
+     * @section Effect
+     *
+     * Called on 1 or more PEs, Causes immediate termination of the
+     * Eureka region on all PEs.  Pending communication is flushed, files are
+     * closed.  "status" allows the call to pass back information to the
+     * execution environment.
+     * 
+     *
+     * @return None.
+     *
+     */
+    void shmem_eureka (void);
+    
+    
 #ifdef __cplusplus
 }
 #endif  /* __cplusplus */

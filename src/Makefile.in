@@ -239,6 +239,17 @@ WTIME_SRC             = $(WTIME_DIR)/*.c
 WTIME_OBJ             = $(WTIME_SRC:.c=.o)
 
 # ---------------------------------------------------------
+#
+# eureka
+#
+EUREKA_DIR             = ./eureka
+EUREKA_CPPFLAGS        = -I$(EUREKA_DIR)
+EUREKA_SRC             = $(EUREKA_DIR)/*.c
+EUREKA_OBJ             = $(EUREKA_SRC:.c=.o)
+
+# ---------------------------------------------------------
+
+
 
 #
 # this is where the C compiler gets chosen along with the various
@@ -275,6 +286,7 @@ CPPFLAGS        += $(PTP_CPPFLAGS)
 CPPFLAGS        += $(UPDOWN_CPPFLAGS)
 CPPFLAGS        += $(REDUCE_CPPFLAGS)
 CPPFLAGS        += $(WTIME_CPPFLAGS)
+CPPFLAGS        += $(EUREKA_CPPFLAGS)
 
 ifeq "@HAVE_FEATURE_DEBUG@" "enabled"
 CPPFLAGS        += -DHAVE_FEATURE_DEBUG
@@ -356,6 +368,7 @@ API_OBJ         += $(REDUCE_OBJ)
 API_OBJ         += $(FORTRAN_OBJ)
 API_OBJ         += $(PROFILING_OBJ)
 API_OBJ         += $(WTIME_OBJ)
+API_OBJ         += $(EUREKA_OBJ)
 
 OBJ              = $(INT_OBJ) $(API_OBJ)
 
@@ -500,6 +513,9 @@ $(PROFILING_OBJ):
 $(WTIME_OBJ):
 	$(MAKE) -C $(WTIME_DIR) build-stamp
 
+$(EUREKA_OBJ):
+	$(MAKE) -C $(EUREKA_DIR) build-stamp
+
 # -- otherwise, compile everything else like this ---------
 
 %.o:	%.c
@@ -516,7 +532,7 @@ $(SHMEM_LIBRARY_SO):	$(OBJ_SO)
 		$(BARRIER_OBJ) $(BARRIER_ALL_OBJ) $(ALLTOALL_OBJ) \
 		$(MEMORY_OBJ) $(ATOMIC_OBJ) $(FENCE_OBJ) $(CACHE_OBJ) \
 		$(PTP_OBJ) $(BROADCAST_OBJ) $(COLLECT_OBJ) $(FCOLLECT_OBJ) \
-		$(FORTRAN_OBJ) $(REDUCE_OBJ) $(PROFILING_OBJ) $(WTIME_OBJ) \
+		$(FORTRAN_OBJ) $(REDUCE_OBJ) $(PROFILING_OBJ) $(WTIME_OBJ) $(EUREKA_OBJ) \
 		$(LIBS)
 
 # -- generate the archive object library -------------------
@@ -531,6 +547,7 @@ $(SHMEM_LIBRARY_A):	$(OBJ)
 # ---------------------------------------------------------
 
 tidy clean:
+	$(MAKE) -C $(EUREKA_DIR) $@
 	$(MAKE) -C $(WTIME_DIR) $@
 	$(MAKE) -C $(PROFILING_DIR) $@
 	$(MAKE) -C $(REDUCE_DIR) $@

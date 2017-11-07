@@ -50,46 +50,47 @@
  */
 
 
-#ifndef _WARN_H
-#define _WARN_H 1
+#ifndef _EUREKA_H
+#define _EUREKA_H 1
 
-#include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include "trace.h"
 
-typedef enum
-  {
-    SHMEM_LOG_FATAL = 0,        /* unrecoverable problem */
-    SHMEM_LOG_DEBUG,            /* debugging information */
-    SHMEM_LOG_INFO,             /* informational */
-    SHMEM_LOG_SYMBOLS,          /* dump global dymbol table */
-    SHMEM_LOG_VERSION,          /* show library version */
-    SHMEM_LOG_INIT,             /* during OpenSHMEM initialization */
-    SHMEM_LOG_FINALIZE,         /* during OpenSHMEM shutdown */
-    SHMEM_LOG_ATOMIC,           /* used by various atomic ops */
-    SHMEM_LOG_AUTH,             /* something not authorized */
-    SHMEM_LOG_BARRIER,          /* barrier ops */
-    SHMEM_LOG_ALLTOALL,         /* alltoall ops */
-    SHMEM_LOG_BROADCAST,        /* broadcast ops */
-    SHMEM_LOG_REDUCTION,        /* reduction ops */
-    SHMEM_LOG_CACHE,            /* cache flushing ops */
-    SHMEM_LOG_COLLECT,          /* [f]collect/gather ops */
-    SHMEM_LOG_QUIET,            /* quiet calls */
-    SHMEM_LOG_FENCE,            /* fence calls */
-    SHMEM_LOG_LOCK,             /* global locks */
-    SHMEM_LOG_MEMORY,           /* symmetric memory operations */
-    SHMEM_LOG_NOTICE,           /* serious, but non-fatal */
-    SHMEM_LOG_SERVICE,          /* network service thread */
-    SHMEM_LOG_PROFILING,        /* for the PSHMEM profiling interface */
-    SHMEM_LOG_EUREKA,        /* @eureka for the EUREKA event interfaces */
-  } shmem_trace_t;
+#include "shmemx.h"
+#include "state.h"
 
-extern void shmemi_tracers_init (void);
-extern void shmemi_tracers_fini (void);
-extern void shmemi_tracers_show (void);
+#include <pthread.h>
 
-extern void shmemi_maybe_tracers_show_info (void);
+/*
+ *TODO: We may be able to find a better place for this variable.(e.g. utils/state.h)
+ *Declare a global global pointer for jmp_buf, we'll allocate it later
+ *Size of the array would be num_pes(numpes)
+ */
+//jmp_buf *env = NULL;
+//jmp_buf eureka_env;//[4];	/*Test purpose*/
 
-extern void shmemi_trace (shmem_trace_t msg_type, char *fmt, ...);
-extern int shmemi_trace_is_enabled (shmem_trace_t level);
+//pthread_t eureka_thrd;
 
-#endif /* _WARN_H */
+/* 
+ * Eureka Container structure
+ */
+ 
+typedef struct _EUREKA_CONTAINER_T_
+{
+	void (* eureka_func)(void *);
+	void *eureka_func_args;
+	
+	void (* clean_up_handler)(void *);
+	void *clean_up_handler_args;
+	
+	pthread_t eureka_thrd;
+	
+}eureka_container_t;
+
+eureka_container_t eureka_obj;
+
+int eureka_int[10];
+/* empty */
+
+#endif /* _EUREKA_H */
