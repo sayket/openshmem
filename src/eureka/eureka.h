@@ -84,11 +84,12 @@ typedef struct _EUREKA_CONTAINER_T_
 	void (* clean_up_handler)(void *);
 	void *clean_up_handler_args;
 	
+	int cancelFlag;
 	pthread_t eureka_thrd;
 	
 }eureka_container_t;
 
-eureka_container_t eureka_obj;
+eureka_container_t eureka_obj[100];
 
 int eureka_int[10];
 /* empty */

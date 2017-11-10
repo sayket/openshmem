@@ -76,14 +76,14 @@ static void *_shmem_eureka_init (void *args)
 	const int npes = GET_STATE (numpes);
 	const int mype = GET_STATE (mype);
 	
-	shmemi_trace (SHMEM_LOG_EUREKA, "2: Address of pthread_t = %p ", &eureka_obj.eureka_thrd);
+	shmemi_trace (SHMEM_LOG_EUREKA, "2: Address of pthread_t = %p ", &eureka_obj[mype].eureka_thrd);
 	/* 
 	 *Set the appropitate eureka_thread clean up handler
 	 *Checking for NULL, because if the handler is NULL, it will crash. 
 	 *This allows user to pass NULL without having any side effect ( So nice of me :v :v)
 	 */
 
-	pthread_cleanup_push((eureka_obj.clean_up_handler), (eureka_obj.clean_up_handler_args));	
+	pthread_cleanup_push((eureka_obj[mype].clean_up_handler), (eureka_obj[mype].clean_up_handler_args));	
 
 	/* Enable aynchronus cancllation of the thread */	
 	ret = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &oldtype);
@@ -94,8 +94,11 @@ static void *_shmem_eureka_init (void *args)
 		goto out;
 	}
 	
+	/*implicit barrier before calling the eureka_func*/
+	shmem_barrier_all ();
+
 	/* Now call the eureka_func */
-	eureka_obj.eureka_func(eureka_obj.eureka_func_args);
+	eureka_obj[mype].eureka_func(eureka_obj[mype].eureka_func_args);
 	
 	
 	
@@ -123,41 +126,48 @@ void shmem_eureka_init (void (*eureka_func) (void*), void *eureka_func_args, voi
 	const int mype = GET_STATE (mype);
 	
 	/* 
-	 *Fill up the eureka_obj for the eureka_event
+	 *Fill up the eureka_obj[mype] for the eureka_event
 	 *This eureka_container_t object will be used throughout the 
 	 *Eureka event
 	 */	
-	eureka_obj.eureka_func = eureka_func;	
-	eureka_obj.eureka_func_args = eureka_func_args;
+	eureka_obj[mype].eureka_func = eureka_func;	
+	eureka_obj[mype].eureka_func_args = eureka_func_args;
 
 	if(eureka_clean_up_handler == NULL)
 	{
-		eureka_obj.clean_up_handler = _eureka_default_clean_up_handler;
-		eureka_obj.clean_up_handler_args = NULL;
+		eureka_obj[mype].clean_up_handler = _eureka_default_clean_up_handler;
+		eureka_obj[mype].clean_up_handler_args = NULL;
 	}
 	else
 	{
-		eureka_obj.clean_up_handler = eureka_clean_up_handler;	
-		eureka_obj.clean_up_handler_args = clean_up_handler_args;
+		eureka_obj[mype].clean_up_handler = eureka_clean_up_handler;	
+		eureka_obj[mype].clean_up_handler_args = clean_up_handler_args;
 	}
 	
+	/* Set the cancel flag to 0 */
+	eureka_obj[mype].cancelFlag = 0;
 	
-	/*implicit barrier before _shmem_eureka_init*/
-	shmem_barrier_all ();
+	/*
+	 * implicit barrier before _shmem_eureka_init, moved the barrier to 
+	 * before the eureka function call
+	 */
+	// shmem_barrier_all ();
 	
 	/* Create the pthread and assign the eureka_func work to this thread */
 	
-	shmemi_trace (SHMEM_LOG_EUREKA, "1: Address of pthread_t = %p ", &eureka_obj.eureka_thrd);
+	shmemi_trace (SHMEM_LOG_EUREKA, "1: Address of pthread_t = %p ", &eureka_obj[mype].eureka_thrd);
 	
-	ret = pthread_create(&eureka_obj.eureka_thrd, NULL, &_shmem_eureka_init, NULL);
+	ret = pthread_create(&eureka_obj[mype].eureka_thrd, NULL, &_shmem_eureka_init, NULL);
     if (ret != 0)
 	{
 		shmemi_trace (SHMEM_LOG_EUREKA, "Error: creating eureka thread");
 	}
 	
-	shmemi_trace (SHMEM_LOG_EUREKA, "5: Address of pthread_t = %p ", &eureka_obj.eureka_thrd);
+	shmemi_trace (SHMEM_LOG_EUREKA, "5: Address of pthread_t = %p ", &eureka_obj[mype].eureka_thrd);
 	
-	ret = pthread_join(eureka_obj.eureka_thrd, &res);
+	GASNET_BLOCKUNTIL(eureka_obj[mype].cancelFlag != 0);
+
+	ret = pthread_join(eureka_obj[mype].eureka_thrd, &res);
     if (ret != 0)
 	{
 		shmemi_trace (SHMEM_LOG_EUREKA, "Error: joining eureka thread");
@@ -190,7 +200,7 @@ void shmem_eureka (void)
 
 	shmemi_trace (SHMEM_LOG_EUREKA,
                       "Begin shmem_eureka_trigger()");
-	shmemi_trace (SHMEM_LOG_EUREKA, "3: Address of pthread_t = %p ", &eureka_obj.eureka_thrd);
+	shmemi_trace (SHMEM_LOG_EUREKA, "3: Address of pthread_t = %p ", &eureka_obj[mype].eureka_thrd);
 	shmemi_comms_eureka_tirgger_request(mype);
 	shmemi_trace (SHMEM_LOG_EUREKA,
                       "End shmem_eureka_trigger()");

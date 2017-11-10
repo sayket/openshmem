@@ -2679,7 +2679,7 @@ handler_eureka_out (gasnet_token_t token, void *buf, size_t bufsiz)
   /*
    * Implementation of binary tree based broadcasting
    */
-  shmemi_trace (SHMEM_LOG_EUREKA, "4: Address of pthread_t = %p ", &eureka_obj.eureka_thrd);
+  shmemi_trace (SHMEM_LOG_EUREKA, "4: Address of pthread_t = %p ", &eureka_obj[mype].eureka_thrd);
     
   /* Broadcasting in a tree manner (binary tree). Send cancellation signal to my child */
   pseudo_pe = (mype + npes - origin) % npes;
@@ -2700,11 +2700,16 @@ handler_eureka_out (gasnet_token_t token, void *buf, size_t bufsiz)
     shmemi_trace (SHMEM_LOG_EUREKA, "Signalling Eureka to PE = %d",((pe + origin) % npes));
   }
   
+  /* 
+   * changing the cancelation flag makig sure the flag is 1
+   * and the eureka thread is ready to be joined
+   */
+  eureka_obj[mype].cancelFlag = 1;
   /* Send cancellation request to the eureka thread*/
-  ret = pthread_cancel(eureka_obj.eureka_thrd);
+  ret = pthread_cancel(eureka_obj[mype].eureka_thrd);
   if (ret != 0)
   {
-    shmemi_trace (SHMEM_LOG_EUREKA, "Error: cancelling eureka thread at PE = %d",mype);
+    shmemi_trace (SHMEM_LOG_EUREKA, "Error: cancelling eureka thread at PE = %d, error code= %d , Address of pthread_t = %p",mype, ret, &eureka_obj[mype].eureka_thrd);
   }
 }
 
@@ -2763,11 +2768,18 @@ shmemi_comms_eureka_tirgger_request (int origin)
   }
   
   shmemi_comms_fence_request ();
+
+  /* 
+   * changing the cancelation flag makig sure the flag is 1
+   * and the eureka thread is ready to be joined
+   */
+  eureka_obj[mype].cancelFlag = 1;
   /* Send cancellation request to the eureka thread*/
-  ret = pthread_cancel(eureka_obj.eureka_thrd);
+
+  ret = pthread_cancel(eureka_obj[mype].eureka_thrd);
   if (ret != 0)
   {
-    shmemi_trace (SHMEM_LOG_EUREKA, "Error: cancelling eureka thread at PE = %d",mype);
+    shmemi_trace (SHMEM_LOG_EUREKA, "Error: cancelling eureka thread at PE = %d, error code= %d , Address of pthread_t = %p",mype, ret, &eureka_obj[mype].eureka_thrd);
   }
 
 }
